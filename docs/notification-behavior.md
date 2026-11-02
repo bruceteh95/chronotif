@@ -21,9 +21,17 @@ A stack with one message is a plain card. A stack with more is collapsed: the la
 - Swiping one message card hides only that message in Chronotif, because Android can't remove one message from a notification. The chat stays in the system shade.
 - Swiping a collapsed stack, or tapping ×, clears the whole conversation, which removes its stacks from both sections.
 
-In Earlier, each such conversation has its own stack. Other notifications are one card each, in time order like the rest of Earlier: they don't stack by app, because a per-app stack sat at its newest card's time and pulled the app's older cards above newer ones from other apps. Your own replies aren't cards. Apps that send only the latest text, with no list of messages, can't be split: they stay one card per notification. When content is hidden on the lock screen, a conversation is one card with no messages.
+In Earlier, each such conversation has its own stack. Your own replies aren't cards. Apps that send only the latest text, with no list of messages, can't be split: they stay one card per notification. When content is hidden on the lock screen, a conversation is one card with no messages.
 
 This covers messages available in active Android notifications. It does not require an archive of messages Android no longer supplies.
+
+## App stacks in Earlier
+
+Agreed in the November 2026 review of Earlier on the phone (ADR 0004, which supersedes ADR 0003).
+
+Earlier is newest first. Cards from one app that sit next to each other in that order fold into an App stack, as long as each arrived within 30 minutes of the stack's newest card. Three T3 Code cards from the last two minutes form one stack. A T3 Code card from 4 hours earlier forms a separate stack with the cards near it, never with the recent ones. A card from another app between two of an app's cards splits them. Grouping all of an app's cards together would pull its older cards above newer ones from other apps.
+
+A collapsed App stack shows its newest card with slivers underneath. Tapping it opens its cards in the same place, under the app's name with Show less and ×. Swiping the collapsed stack, or tapping ×, clears every notification in it. A conversation showing one message is a single card and can join an App stack, for example TikTok's one-message chats. A Conversation stack with several messages stays on its own. New doesn't use App stacks: every New card shows in full. The "N earlier" pill counts cards, not stacks.
 
 ## New incoming messages
 
@@ -59,6 +67,7 @@ A Media player is drawn from the app's media session, like the system shade's pl
 
 - Leave a notification wake untouched. Chronotif remains visible and the display sleeps after the stock lock-screen timeout (about ten seconds), not the normal screen timeout, without an extra stock lock-screen interval.
 - Press Back while Chronotif is visible. The stock lock screen appears.
+- Let one app post three notifications within a few minutes, and another notification from it hours earlier, then check. Earlier shows the three as one collapsed App stack and the old one apart from them; tapping the stack opens the three in place.
 - Receive several messages in one conversation. New shows a collapsed stack with the count on the Avatar; tapping it shows one card per message. Messages from before the last check sit in the conversation's own Earlier stack.
 - Swipe one message card away. Only that message disappears; the chat stays in the system shade. Swipe the collapsed stack and the conversation is cleared everywhere.
 - Check a conversation, then receive another incoming message through a silent update of its notification. The conversation returns to New.

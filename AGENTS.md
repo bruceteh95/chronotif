@@ -14,7 +14,7 @@ Each of these is changed together with the code it describes, in the same commit
 
 ## Ordering
 
-Time order is the product. Every section sorts newest first by the time its card shows. A Conversation stack is the only grouping, and each app's other notifications stay as separate cards (ADR 0003). Check any new grouping, sorting or collapsing against this before building it.
+Time order is the product. Every section sorts newest first by the time its card shows. Only two groupings exist: a Conversation stack, and in Earlier an App stack of one app's neighbouring cards that arrived within 30 minutes of its newest card (ADR 0004). A stack never gathers an app's cards from across the list. Check any new grouping, sorting or collapsing against this before building it.
 
 ## Verifying
 

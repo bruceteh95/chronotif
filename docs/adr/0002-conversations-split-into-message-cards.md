@@ -11,4 +11,4 @@ Android holds a whole chat as one notification, but people wanted to see every m
 
 - Chronotif keeps its own record of hidden message cards. The system shade can still show those messages.
 - Apps that send only the latest text, with no list of messages, can't be split. They stay as one card per notification.
-- Earlier now stacks by conversation, not by app, for conversations. Other notifications still stack by app. (Superseded by ADR 0003: they no longer stack by app.)
+- Earlier now stacks by conversation, not by app, for conversations. Other notifications still stack by app. (Superseded by ADR 0003: they no longer stack by app. ADR 0004 then stacks one app's neighbouring cards that arrived close together.)

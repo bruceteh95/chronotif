@@ -12,10 +12,14 @@ _Avoid_: Shade (the system's), drawer
 Notifications that brought new activity since the user's last meaningful check. For a conversation, only its messages that arrived since that check are New.
 
 **Earlier**:
-Still-active notifications the user has already checked, receded but still newest first. Only a conversation folds into a stack; one app's other notifications are never folded together, since that would put an old one above newer ones. A conversation can sit in New and Earlier at once, split by message.
+Still-active notifications the user has already checked, receded but still newest first. A conversation folds into a Conversation stack, and one app's neighbouring cards fold into an App stack. A conversation can sit in New and Earlier at once, split by message.
 
 **Conversation stack**:
 A conversation shown as one card per message, collapsed to its latest message with a count until opened.
+
+**App stack**:
+One app's cards that sit next to each other in Earlier and arrived within 30 minutes of the newest of them, collapsed to that newest card until opened. Opening it shows its cards in the same place, so it never puts an old card above a newer one from another app. A Conversation stack with several messages never joins one.
+_Avoid_: Group, per-app stack (the old design that gathered all of an app's cards)
 
 **Conversation history**:
 The messages Android currently supplies for a conversation, including messages already checked. It is distinct from the Earlier section.

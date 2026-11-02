@@ -91,8 +91,8 @@ class NotificationBehaviorTest {
     }
 
     @Suppress("DEPRECATION")
-    private fun post(n: Notification, time: Long = 1000, id: Int = 1): Entry {
-        val sbn = StatusBarNotification("example.chat", "example.chat", id, null, 1000, 0, 0,
+    private fun post(n: Notification, time: Long = 1000, id: Int = 1, pkg: String = "example.chat"): Entry {
+        val sbn = StatusBarNotification(pkg, pkg, id, null, 1000, 0, 0,
             n, Process.myUserHandle(), time)
         NotifStore.post(sbn, ranking)
         return NotifStore.get(sbn.key)!!
@@ -410,7 +410,7 @@ class NotificationBehaviorTest {
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("Mail").setContentText("newer mail")
             .build()
-        post(mail, time = 3000, id = 2)
+        post(mail, time = 3000, id = 2, pkg = "example.mail")
         Prefs.markChecked(10_000)
         withPanelList { list, container ->
             list.render()
@@ -420,15 +420,15 @@ class NotificationBehaviorTest {
     }
 
     @Test
-    fun earlierKeepsOneAppsNotificationsInTimeOrderInsteadOfOneStack() {
-        // Two mails from one app with a chat between them: the old mail stays below the chat.
+    fun earlierKeepsOneAppsNotificationsInTimeOrderAroundAnotherApps() {
+        // Two mails from one app with another app's chat between them: the old mail stays below the chat.
         fun mail(text: String) = Notification.Builder(context, "mail")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("Mail").setContentText(text)
             .build()
-        post(mail("old mail"), time = 1000, id = 1)
+        post(mail("old mail"), time = 1000, id = 1, pkg = "example.mail")
         post(notification(listOf("chat" to 3000L)), time = 3000, id = 2)
-        post(mail("new mail"), time = 4000, id = 3)
+        post(mail("new mail"), time = 4000, id = 3, pkg = "example.mail")
         Prefs.markChecked(10_000)
         withPanelList { list, container ->
             list.render()
@@ -436,6 +436,41 @@ class NotificationBehaviorTest {
             val order = listOf("new mail", "chat", "old mail").map { shown.indexOf(it) }
             assertTrue(shown.toString(), order.all { it >= 0 } && order == order.sorted())
             assertTrue(views(container).none { it is app.chronotif.ui.StackView && it.visibility == View.VISIBLE })
+        }
+    }
+
+    @Test
+    fun earlierStacksAnAppsNeighbouringCardsOnlyWhenTheyArrivedCloseTogether() {
+        fun task(text: String) = Notification.Builder(context, "tasks")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Task").setContentText(text)
+            .build()
+        val hour = 3_600_000L
+        val base = 10 * hour
+        post(task("old task"), time = base - 4 * hour, id = 1, pkg = "example.tasks")
+        post(task("older task"), time = base - 4 * hour - 60_000, id = 2, pkg = "example.tasks")
+        post(task("recent task"), time = base - 120_000, id = 3, pkg = "example.tasks")
+        post(task("newest task"), time = base, id = 4, pkg = "example.tasks")
+        // Single-message chats from one app stack like any other card.
+        post(notification(listOf("sticker" to base - hour)), time = base - hour, id = 5)
+        post(notification(listOf("hi" to base - hour - 1000)), time = base - hour - 1000, id = 6)
+        Prefs.markChecked(base + 1)
+        withPanelList { list, container ->
+            list.render()
+            val stacks = views(container).filterIsInstance<app.chronotif.ui.StackView>().filter { it.isShownInTree() }
+            assertEquals(3, stacks.size)
+            val shown = shownTexts(container)
+            // Collapsed: each stack shows only its newest card, in time order.
+            val order = listOf("newest task", "sticker", "old task").map { shown.indexOf(it) }
+            assertTrue(shown.toString(), order.all { it >= 0 } && order == order.sorted())
+            assertTrue(shown.toString(), listOf("recent task", "hi", "older task").none { it in shown })
+
+            // Opening the recent stack shows its cards in place, still above the chats.
+            stacks[0].card.performClick()
+            val opened = shownTexts(container)
+            val inPlace = listOf("newest task", "recent task", "sticker", "old task").map { opened.indexOf(it) }
+            assertTrue(opened.toString(), inPlace.all { it >= 0 } && inPlace == inPlace.sorted())
+            assertTrue(opened.toString(), "older task" !in opened)
         }
     }
 

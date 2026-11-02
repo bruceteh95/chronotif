@@ -40,7 +40,7 @@ prominent, and keep them available for later.
 | --- | --- |
 | Calls and media | Ongoing calls, then music and video players with artwork, controls and a seek bar (playing or paused), at the top. These never count as new. |
 | New | Notifications that arrived since your last check, newest first. |
-| Earlier | Notifications you've already checked, dimmed and smaller, still newest first. One app's notifications aren't folded into one stack, so an old one never sits above a newer one from another app. |
+| Earlier | Notifications you've already checked, dimmed and smaller, still newest first. Neighbouring cards from one app that arrived within half an hour of each other fold into a stack, so an old one never sits above a newer one from another app. |
 | Running | Always-running services, connected devices, downloads and navigation, collapsed behind an "N running" pill at the bottom. These never count as new and stay off the lock-screen view. |
 
 For example, open the panel to catch up on your messages, then close it. Those
