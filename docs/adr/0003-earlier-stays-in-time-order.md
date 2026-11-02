@@ -1,5 +1,7 @@
 # Earlier stays in time order instead of stacking by app
 
+Superseded by [ADR 0004](0004-earlier-stacks-an-apps-neighbouring-cards.md): one app's neighbouring cards that arrived close together stack again.
+
 Earlier used to fold each app's notifications into one stack, placed at its newest card's time. Opening that stack put the app's older cards above newer ones from other apps. On the lock screen, a T3 Code stack showed cards from Yesterday above a TikTok card from 7 minutes ago. Chronotif exists because the stock shade orders by app instead of by time, so we chose to give every Earlier notification its own card, newest first, by the time its card shows. Only a Conversation stack still folds cards together, because all its cards belong to one notification.
 
 ## Considered Options

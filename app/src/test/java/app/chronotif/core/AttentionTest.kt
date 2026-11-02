@@ -36,6 +36,34 @@ class AttentionTest {
     }
 
     @Test
+    fun earlierStacksOnlyAnAppsNeighbouringCardsThatArrivedCloseTogether() {
+        val min = 60_000L
+        val cards = listOf(
+            N("t3-now", "t3", 240 * min), N("t3-1m", "t3", 239 * min), N("t3-2m", "t3", 238 * min),
+            N("insta", "insta", 236 * min),
+            N("tt-a", "tiktok", 197 * min), N("tt-b", "tiktok", 197 * min),
+            N("tt-c", "tiktok", 196 * min), N("chat", "tiktok", 195 * min), N("tt-d", "tiktok", 194 * min),
+            // Four hours before the recent T3 cards, and not next to them: its own stack.
+            N("t3-4h-a", "t3", 0), N("t3-4h-b", "t3", 0),
+        )
+        val stacks = Attention.appStacks(cards, { it.alertTime }, { if (it.key == "chat") null else it.app })
+        assertEquals(
+            listOf(listOf("t3-now", "t3-1m", "t3-2m"), listOf("insta"), listOf("tt-a", "tt-b", "tt-c"),
+                listOf("chat"), listOf("tt-d"), listOf("t3-4h-a", "t3-4h-b")),
+            stacks.map { s -> s.map { it.key } },
+        )
+    }
+
+    @Test
+    fun anAppStackSpansAtMostTheWindowFromItsNewestCard() {
+        val min = 60_000L
+        // Each card is 20 minutes after the next, but the third is 40 behind the stack's newest.
+        val cards = listOf(N("a", "mail", 40 * min), N("b", "mail", 20 * min), N("c", "mail", 0))
+        assertEquals(listOf(listOf("a", "b"), listOf("c")),
+            Attention.appStacks(cards, { it.alertTime }, { it.app }).map { s -> s.map { it.key } })
+    }
+
+    @Test
     fun aConversationSplitsAtTheCheckKeepingAtLeastItsLatestMessageNew() {
         assertEquals(2, Attention.newMessages(listOf(5, 20, 30), lastCheck = 15))
         assertEquals(3, Attention.newMessages(listOf(20, 30, 40), lastCheck = 15))

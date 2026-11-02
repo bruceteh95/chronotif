@@ -13,6 +13,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import app.chronotif.Act
+import app.chronotif.Apps
 import app.chronotif.Content
 import app.chronotif.Entry
 import app.chronotif.LockPolicy
@@ -150,7 +151,7 @@ class NotifList(
         // time its card shows: apps quietly repost old chats, which moves the notification's own time.
         val fresh = ArrayList<Pair<Long, List<Row>>>()
         var newCount = 0
-        val earlier = ArrayList<Pair<Long, () -> Unit>>()
+        val earlier = ArrayList<Piece>()
         for (e in s.fresh) {
             val c = Content.of(ctx, e, redacted(e))
             val incoming = c.messages.filter { it.incoming }
@@ -173,8 +174,8 @@ class NotifList(
                 fresh += new.last().time to part
                 newCount++
             }
-            if (old.isNotEmpty()) earlier += old.last().time to {
-                conversation(earlierStackId(e.key), e, c, old, CardView.Style.RECEDED, rows, now)
+            if (old.isNotEmpty()) earlier += Piece(old.last().time, e, c, old) { style ->
+                conversation(earlierStackId(e.key), e, c, old, style, rows, now)
             }
         }
         if (fresh.isNotEmpty()) {
@@ -182,16 +183,15 @@ class NotifList(
             fresh.sortedByDescending { it.first }.forEach { rows += it.second }
         }
 
-        // Each Earlier notification keeps its own place in time: one app's don't fold into one stack.
         for (e in s.earlier) {
             val c = Content.of(ctx, e, redacted(e))
             val hidden = NotifStore.hiddenMessages(e.key)
             val shown = c.messages.filter { it.incoming && it.id !in hidden }
             if (c.messages.any { it.incoming }) {
-                if (shown.isNotEmpty()) earlier += shown.last().time to {
-                    conversation(earlierStackId(e.key), e, c, shown, CardView.Style.RECEDED, rows, now)
+                if (shown.isNotEmpty()) earlier += Piece(shown.last().time, e, c, shown) { style ->
+                    conversation(earlierStackId(e.key), e, c, shown, style, rows, now)
                 }
-            } else earlier += e.alertTime to { card(e, CardView.Style.RECEDED) }
+            } else earlier += Piece(e.alertTime, e, c, null) { style -> card(e, style) }
         }
 
         if (earlier.isNotEmpty()) {
@@ -204,7 +204,14 @@ class NotifList(
             } else {
                 rows += header("h:earlier", ctx.getString(R.string.section_earlier),
                     clear = earlierAll.takeIf { l -> l.any { it.clearable } })
-                earlier.sortedByDescending { it.first }.forEach { it.second() }
+                // One app's neighbouring cards that arrived close together fold into a stack (ADR 0004).
+                // A conversation with several messages is already its own stack, so it stands alone.
+                val stacks = Attention.appStacks(earlier.sortedByDescending { it.time }, time = { it.time },
+                    app = { p -> p.e.appId.takeIf { p.msgs == null || p.msgs.size == 1 } })
+                for (stack in stacks) {
+                    if (stack.size == 1) stack[0].draw(CardView.Style.RECEDED)
+                    else appStack(stack, rows, now)
+                }
             }
         }
 
@@ -227,6 +234,60 @@ class NotifList(
 
     private fun newStackId(key: String) = "new|$key"
     private fun earlierStackId(key: String) = "earlier|$key"
+
+    /**
+     * One Earlier card or Conversation stack, at the time it shows; [msgs] is null for a plain
+     * notification. [draw] adds its rows in the given style.
+     */
+    private class Piece(
+        val time: Long, val e: Entry, val c: Content, val msgs: List<Content.Msg>?, val draw: (CardView.Style) -> Unit,
+    ) {
+        val id get() = msgs?.singleOrNull()?.let { "${e.key}#${it.id}" } ?: e.key
+    }
+
+    /**
+     * One app's neighbouring Earlier cards, collapsed to the newest with the rest peeking out underneath,
+     * or opened in place under the app's name. A reply being typed in one keeps it open.
+     */
+    private fun appStack(stack: List<Piece>, rows: MutableList<Row>, now: Long) {
+        val top = stack[0]
+        val stackId = "app|${top.id}"
+        val entries = stack.map { it.e }
+        val replyingHere = replying?.first.let { r -> r != null && stack.any { r == it.e.key || r.startsWith("${it.e.key}#") } }
+        if (stackId in openStacks || replyingHere) {
+            rows += stackHeader("sh:$stackId", Apps.label(ctx, top.e.pkg), entries.any { it.clearable },
+                close = {
+                    openStacks -= stackId
+                    if (replyingHere) replying = null
+                    render()
+                }) {
+                openStacks -= stackId
+                dismissAll(entries)
+            }
+            stack.forEach { it.draw(CardView.Style.FULL) }
+            return
+        }
+        entries.forEach { shownUpTo = maxOf(shownUpTo, it.alertTime) }
+        rows += Row("as:$stackId", { StackView(ctx, this) }) { v ->
+            v as StackView
+            v.bind(stack.size)
+            v.card.showCount(0)
+            v.card.tapOverride = {
+                openStacks += stackId
+                render()
+            }
+            v.card.swipeAllowed = { entries.any { it.clearable } }
+            v.card.onSwiped = { dismissAll(entries) }
+            val msg = top.msgs?.single()
+            if (msg != null) {
+                v.card.bind(top.e, top.c.forMessage(msg), CardView.Style.RECEDED, false, -1, now, id = "$stackId#top", at = msg.time)
+            } else {
+                v.card.bind(top.e, top.c, CardView.Style.RECEDED, false, -1, now, id = "$stackId#top")
+            }
+            if (top.e.key !in pendingDismiss) v.card.swipe.reset(v.card)
+            v.layoutParams = gap(8)
+        }
+    }
 
     /**
      * A Conversation stack of [msgs] (oldest first): one card for a single message; otherwise

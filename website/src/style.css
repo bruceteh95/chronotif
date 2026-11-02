@@ -775,6 +775,44 @@ q {
   -webkit-line-clamp: 1;
 }
 
+/* An app stack: the newest card with "slivers" peeking out below, like the app's. */
+.d-stack {
+  position: relative;
+}
+.d-stack[data-count="2"] {
+  padding-bottom: 0.45rem;
+}
+.d-stack[data-count="3"] {
+  padding-bottom: 0.9rem;
+}
+.d-stack .d-card {
+  z-index: 2;
+}
+.d-stack::before,
+.d-stack::after {
+  content: "";
+  position: absolute;
+  height: 1.2rem;
+  border-radius: 0 0 0.85rem 0.85rem;
+  pointer-events: none;
+}
+.d-stack::before {
+  left: 0.6rem;
+  right: 0.6rem;
+  bottom: 0;
+  background: #1d1d20;
+}
+.d-stack[data-count="3"]::before {
+  bottom: 0.45rem;
+  z-index: 1;
+}
+.d-stack[data-count="3"]::after {
+  left: 1.2rem;
+  right: 1.2rem;
+  bottom: 0;
+  background: #18181a;
+}
+
 .d-arrive {
   animation: d-arrive 0.5s var(--ease) both;
 }
