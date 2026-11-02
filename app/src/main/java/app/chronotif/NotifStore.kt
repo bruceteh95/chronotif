@@ -24,9 +24,6 @@ class Entry(
     /** One app for one user. */
     val appId = "${sbn.packageName}|${sbn.user.hashCode()}"
     override val kind = Content.kind(sbn)
-    /** A conversation that lists its messages gets its own stack; anything else stacks by app. */
-    override val stackId =
-        if (kind == Kind.NOTIFICATION && n.extras.containsKey(Notification.EXTRA_MESSAGES)) "$appId|${sbn.key}" else appId
     val clearable: Boolean get() = sbn.isClearable
     val isSummary get() = n.flags and Notification.FLAG_GROUP_SUMMARY != 0
     /** Includes the system's auto-grouping, so its empty summaries can be hidden too. */

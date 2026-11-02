@@ -21,7 +21,7 @@ A stack with one message is a plain card. A stack with more is collapsed: the la
 - Swiping one message card hides only that message in Chronotif, because Android can't remove one message from a notification. The chat stays in the system shade.
 - Swiping a collapsed stack, or tapping ×, clears the whole conversation, which removes its stacks from both sections.
 
-In Earlier, each such conversation has its own stack; other notifications still stack by app. Your own replies aren't cards. Apps that send only the latest text, with no list of messages, can't be split: they stay one card per notification and stack by app. When content is hidden on the lock screen, a conversation is one card with no messages.
+In Earlier, each such conversation has its own stack. Other notifications are one card each, in time order like the rest of Earlier: they don't stack by app, because a per-app stack sat at its newest card's time and pulled the app's older cards above newer ones from other apps. Your own replies aren't cards. Apps that send only the latest text, with no list of messages, can't be split: they stay one card per notification. When content is hidden on the lock screen, a conversation is one card with no messages.
 
 This covers messages available in active Android notifications. It does not require an archive of messages Android no longer supplies.
 

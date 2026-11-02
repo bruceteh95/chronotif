@@ -420,6 +420,26 @@ class NotificationBehaviorTest {
     }
 
     @Test
+    fun earlierKeepsOneAppsNotificationsInTimeOrderInsteadOfOneStack() {
+        // Two mails from one app with a chat between them: the old mail stays below the chat.
+        fun mail(text: String) = Notification.Builder(context, "mail")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Mail").setContentText(text)
+            .build()
+        post(mail("old mail"), time = 1000, id = 1)
+        post(notification(listOf("chat" to 3000L)), time = 3000, id = 2)
+        post(mail("new mail"), time = 4000, id = 3)
+        Prefs.markChecked(10_000)
+        withPanelList { list, container ->
+            list.render()
+            val shown = shownTexts(container)
+            val order = listOf("new mail", "chat", "old mail").map { shown.indexOf(it) }
+            assertTrue(shown.toString(), order.all { it >= 0 } && order == order.sorted())
+            assertTrue(views(container).none { it is app.chronotif.ui.StackView && it.visibility == View.VISIBLE })
+        }
+    }
+
+    @Test
     fun aConversationWithEveryMessageHiddenIsNotNew() {
         val e = post(notification(listOf("one" to 1100L, "two" to 1200L)), 1200)
         assertEquals(1, NotifStore.newCount())

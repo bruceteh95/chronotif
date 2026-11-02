@@ -12,7 +12,7 @@ _Avoid_: Shade (the system's), drawer
 Notifications that brought new activity since the user's last meaningful check. For a conversation, only its messages that arrived since that check are New.
 
 **Earlier**:
-Still-active notifications the user has already checked, folded into stacks: one per conversation, otherwise one per app. A conversation can sit in New and Earlier at once, split by message.
+Still-active notifications the user has already checked, receded but still newest first. Only a conversation folds into a stack; one app's other notifications are never folded together, since that would put an old one above newer ones. A conversation can sit in New and Earlier at once, split by message.
 
 **Conversation stack**:
 A conversation shown as one card per message, collapsed to its latest message with a count until opened.

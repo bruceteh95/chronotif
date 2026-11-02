@@ -1,6 +1,6 @@
 // An illustrative model of Chronotif's panel, mirroring core/Attention.kt in the app:
 // one "last check" watermark splits notifications into NEW (arrived after it) and EARLIER
-// (folded into per-app stacks, ordered by their newest member). Media players sit on top;
+// (already checked, receded, still newest first rather than grouped by app). Media players sit on top;
 // background work folds into a Running pill at the bottom.
 // Times are in minutes. All content is made up.
 
@@ -40,16 +40,10 @@ function initialState() {
 
 function sections(state) {
   const byRecent = [...state.items].sort((a, b) => b.alert - a.alert);
-  const fresh = [];
-  const stacks = new Map();
-  for (const item of byRecent) {
-    if (item.alert > state.lastCheck) fresh.push(item);
-    else {
-      if (!stacks.has(item.app)) stacks.set(item.app, []);
-      stacks.get(item.app).push(item);
-    }
-  }
-  return { fresh, earlier: [...stacks.values()] };
+  return {
+    fresh: byRecent.filter((item) => item.alert > state.lastCheck),
+    earlier: byRecent.filter((item) => item.alert <= state.lastCheck),
+  };
 }
 
 function ago(state, t) {
@@ -102,13 +96,7 @@ function render(state, list, fresh = new Set()) {
   if (earlier.length) {
     html += `<p class="d-head"><span>Earlier</span><span class="d-clear" aria-hidden="true">Clear</span></p>`;
     html += `<div class="d-list" role="list">`;
-    html += earlier
-      .map((stack) => {
-        const more = stack.length - 1;
-        const label = more ? `<span class="visually-hidden">, and ${more} more from ${APPS[stack[0].app].name}</span>` : "";
-        return `<div role="listitem" class="d-stack" data-count="${Math.min(stack.length, 3)}">${card(state, stack[0])}${label}</div>`;
-      })
-      .join("");
+    html += earlier.map((i) => `<div role="listitem" class="d-receded">${card(state, i)}</div>`).join("");
     html += `</div>`;
   }
 

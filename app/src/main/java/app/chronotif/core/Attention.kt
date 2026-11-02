@@ -8,12 +8,10 @@ package app.chronotif.core
  * Every notification carries an [Meta.alertTime]: when it last *arrived* (first post, or an
  * update that genuinely brought new content). A single watermark, the time of the user's last
  * meaningful check, splits notifications into NEW (arrived after it) and EARLIER (already seen).
- * EARLIER is folded into stacks so it recedes instead of cluttering. A conversation's messages
- * are split the same way when it's drawn ([newMessages]).
+ * Both are in time order, never grouped by app. A conversation's messages are split the same way
+ * when it's drawn ([newMessages]).
  */
 interface Meta {
-    /** Notifications sharing a stack id fold together in EARLIER (one app, one user). */
-    val stackId: String
     val alertTime: Long
     val kind: Kind
 }
@@ -29,39 +27,37 @@ enum class Kind {
     RUNNING,
 }
 
-class Stack<T>(val id: String, val items: List<T>)
-
 class Sections<T>(
     val calls: List<T>,
     val media: List<T>,
     val fresh: List<T>,
-    val earlier: List<Stack<T>>,
+    val earlier: List<T>,
     val running: List<T>,
 ) {
     /** Running work alone doesn't make the list non-empty in any way worth announcing. */
     val isEmpty get() = calls.isEmpty() && media.isEmpty() && fresh.isEmpty() && earlier.isEmpty()
-    val earlierCount get() = earlier.sumOf { it.items.size }
+    val earlierCount get() = earlier.size
 }
 
 object Attention {
 
-    /** Newest first everywhere; EARLIER stacks are ordered by their newest member. */
+    /** Newest first everywhere, EARLIER included: one app's notifications don't fold together. */
     fun <T : Meta> sections(items: Collection<T>, lastCheck: Long): Sections<T> {
         val byRecent = items.sortedByDescending { it.alertTime }
         val calls = ArrayList<T>()
         val media = ArrayList<T>()
         val running = ArrayList<T>()
         val fresh = ArrayList<T>()
-        val earlier = LinkedHashMap<String, MutableList<T>>()
+        val earlier = ArrayList<T>()
         for (item in byRecent) when (item.kind) {
             Kind.CALL -> calls += item
             Kind.MEDIA -> media += item
             Kind.RUNNING -> running += item
             Kind.NOTIFICATION ->
                 if (item.alertTime > lastCheck) fresh += item
-                else earlier.getOrPut(item.stackId) { ArrayList() } += item
+                else earlier += item
         }
-        return Sections(calls, media, fresh, earlier.map { (id, list) -> Stack(id, list) }, running)
+        return Sections(calls, media, fresh, earlier, running)
     }
 
     fun isNew(item: Meta, lastCheck: Long) = item.kind == Kind.NOTIFICATION && item.alertTime > lastCheck
