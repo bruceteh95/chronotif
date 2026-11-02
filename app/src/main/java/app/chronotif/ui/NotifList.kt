@@ -13,7 +13,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import app.chronotif.Act
-import app.chronotif.Apps
 import app.chronotif.Content
 import app.chronotif.Entry
 import app.chronotif.LockPolicy
@@ -22,7 +21,6 @@ import app.chronotif.Prefs
 import app.chronotif.R
 import app.chronotif.Viewable
 import app.chronotif.core.Attention
-import app.chronotif.core.Stack
 
 /**
  * Renders calls, media, NEW / EARLIER and the collapsed Running group into a [LinearLayout], shared by the panel and the
@@ -77,7 +75,6 @@ class NotifList(
     fun focus(key: String, replyIndex: Int) {
         expanded += key
         if (replyIndex >= 0) replying = key to replyIndex
-        NotifStore.get(key)?.let { openStacks += it.stackId }
         openStacks += newStackId(key)
         openStacks += earlierStackId(key)
     }
@@ -185,30 +182,20 @@ class NotifList(
             fresh.sortedByDescending { it.first }.forEach { rows += it.second }
         }
 
-        for (stack in s.earlier) {
-            val top = stack.items[0]
-            val c = if (stack.items.size == 1) Content.of(ctx, top, redacted(top)) else null
-            val incoming = c?.messages.orEmpty().filter { it.incoming }
-            val newestShown = incoming.lastOrNull { it.id !in NotifStore.hiddenMessages(top.key) }?.time
-            earlier += (newestShown ?: top.alertTime) to {
-                when {
-                    c != null && incoming.isNotEmpty() -> {
-                        val hidden = NotifStore.hiddenMessages(top.key)
-                        val shown = incoming.filter { it.id !in hidden }
-                        if (shown.isNotEmpty()) conversation(earlierStackId(top.key), top, c, shown, CardView.Style.RECEDED, rows, now)
-                    }
-                    stack.items.size == 1 -> card(top, CardView.Style.RECEDED)
-                    stack.id in openStacks -> {
-                        rows += stackHeader(stack)
-                        stack.items.forEach { card(it, CardView.Style.FULL) }
-                    }
-                    else -> collapsedStack(stack, rows, now, ::redacted)
+        // Each Earlier notification keeps its own place in time: one app's don't fold into one stack.
+        for (e in s.earlier) {
+            val c = Content.of(ctx, e, redacted(e))
+            val hidden = NotifStore.hiddenMessages(e.key)
+            val shown = c.messages.filter { it.incoming && it.id !in hidden }
+            if (c.messages.any { it.incoming }) {
+                if (shown.isNotEmpty()) earlier += shown.last().time to {
+                    conversation(earlierStackId(e.key), e, c, shown, CardView.Style.RECEDED, rows, now)
                 }
-            }
+            } else earlier += e.alertTime to { card(e, CardView.Style.RECEDED) }
         }
 
         if (earlier.isNotEmpty()) {
-            val earlierAll = s.earlier.flatMap { it.items }
+            val earlierAll = s.earlier
             if (!earlierRevealed) {
                 rows += pill("p:earlier", ctx.getString(R.string.earlier_count, earlier.size)) {
                     earlierRevealed = true
@@ -236,26 +223,6 @@ class NotifList(
         }
 
         reconcile(rows)
-    }
-
-    private fun collapsedStack(
-        stack: Stack<Entry>, rows: MutableList<Row>, now: Long, redacted: (Entry) -> Boolean,
-    ) {
-        stack.items.forEach { shownUpTo = maxOf(shownUpTo, it.alertTime) }
-        val top = stack.items[0]
-        rows += Row("s:${stack.id}", { StackView(ctx, this) }) { v ->
-            v as StackView
-            v.bind(stack.items.size)
-            v.card.tapOverride = {
-                openStacks += stack.id
-                render()
-            }
-            v.card.swipeAllowed = { stack.items.any { it.clearable } }
-            v.card.onSwiped = { dismissAll(stack.items) }
-            v.card.bind(top, Content.of(ctx, top, redacted(top)), CardView.Style.RECEDED, false, -1, now)
-            if (top.key !in pendingDismiss) v.card.swipe.reset(v.card)
-            v.layoutParams = gap(8)
-        }
     }
 
     private fun newStackId(key: String) = "new|$key"
@@ -448,13 +415,6 @@ class NotifList(
         }
         v.layoutParams = gap(0)
     }
-
-    private fun stackHeader(stack: Stack<Entry>) =
-        stackHeader("sh:${stack.id}", Apps.label(ctx, stack.items[0].pkg), stack.items.any { it.clearable },
-            close = { openStacks -= stack.id; render() }) {
-            openStacks -= stack.id
-            dismissAll(stack.items)
-        }
 
     /** An open stack's title, with Show less ([close]) and × ([clear]). */
     private fun stackHeader(

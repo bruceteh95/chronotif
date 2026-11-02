@@ -9,7 +9,7 @@ import org.junit.Test
 class AttentionTest {
     private data class N(
         val key: String,
-        override val stackId: String,
+        val app: String,
         override val alertTime: Long,
         override val kind: Kind = Kind.NOTIFICATION,
     ) : Meta
@@ -21,18 +21,17 @@ class AttentionTest {
             lastCheck = 15,
         )
         assertEquals(listOf("b", "c"), s.fresh.map { it.key })
-        assertEquals(listOf("mail"), s.earlier.map { it.id })
-        assertEquals(listOf("a", "d"), s.earlier[0].items.map { it.key })
+        assertEquals(listOf("a", "d"), s.earlier.map { it.key })
     }
 
     @Test
-    fun earlierStacksOrderedByNewestMember() {
+    fun earlierStaysInTimeOrderInsteadOfFoldingByApp() {
         val s = Attention.sections(
             listOf(N("a", "mail", 1), N("b", "chat", 3), N("c", "mail", 4), N("d", "sms", 2)),
             lastCheck = 100,
         )
         assertTrue(s.fresh.isEmpty())
-        assertEquals(listOf("mail", "chat", "sms"), s.earlier.map { it.id })
+        assertEquals(listOf("c", "b", "d", "a"), s.earlier.map { it.key })
         assertEquals(4, s.earlierCount)
     }
 

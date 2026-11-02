@@ -757,60 +757,22 @@ q {
   background: var(--accent-soft);
 }
 
-/* EARLIER: receded cards with "slivers" peeking out below, like the app's stacks. */
-.d-stack {
+/* EARLIER: receded cards, still newest first. */
+.d-receded .d-card {
   position: relative;
-  padding-bottom: 0;
-}
-.d-stack[data-count="2"] {
-  padding-bottom: 0.45rem;
-}
-.d-stack[data-count="3"] {
-  padding-bottom: 0.9rem;
-}
-.d-stack .d-card {
-  position: relative;
-  z-index: 2;
   background: #232326;
   font-size: 0.75rem;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
 }
-.d-stack .d-card > * {
+.d-receded .d-card > * {
   opacity: 0.72;
 }
-.d-stack .d-icon {
+.d-receded .d-icon {
   width: 1.75rem;
   height: 1.75rem;
 }
-.d-stack .d-card {
-  grid-template-columns: 1.75rem minmax(0, 1fr);
-}
-.d-stack .d-body {
+.d-receded .d-body {
   -webkit-line-clamp: 1;
-}
-.d-stack::before,
-.d-stack::after {
-  content: "";
-  position: absolute;
-  height: 1.2rem;
-  border-radius: 0 0 0.85rem 0.85rem;
-  pointer-events: none;
-}
-.d-stack[data-count="2"]::before,
-.d-stack[data-count="3"]::before {
-  left: 0.6rem;
-  right: 0.6rem;
-  bottom: 0;
-  background: #1d1d20;
-}
-.d-stack[data-count="3"]::before {
-  bottom: 0.45rem;
-  z-index: 1;
-}
-.d-stack[data-count="3"]::after {
-  left: 1.2rem;
-  right: 1.2rem;
-  bottom: 0;
-  background: #18181a;
 }
 
 .d-arrive {
