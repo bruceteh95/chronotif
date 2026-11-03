@@ -1,133 +1,46 @@
-name: build
+name: Release APK
 
 on:
-  push:
-    branches: [main]
-    tags: ["v*", "nightly-*"]
-  pull_request:
-  schedule:
-    - cron: "0 18 * * *" # 01:00 Asia/Jakarta
   workflow_dispatch:
 
 permissions:
-  contents: read
-
-concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: false
+  contents: write
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    env:
-      KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Select release channel
-        id: release
-        env:
-          EVENT: ${{ github.event_name }}
-        run: |
-          set -euo pipefail
-          version=$(sed -n 's/^ *versionName = "\([0-9.]*\)"/\1/p' app/build.gradle.kts)
-          publish=false
-          nightly=""
-          tag="$GITHUB_REF_NAME"
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            [[ "$tag" == "v$version" ]] || { echo "::error::tag does not match versionName $version"; exit 1; }
-            publish=true
-          elif [[ "$GITHUB_REF" == refs/tags/nightly-* ]]; then
-            prefix="nightly-$version-"
-            [[ "$tag" == "$prefix"* ]] || { echo "::error::nightly tag does not match versionName $version"; exit 1; }
-            nightly="${tag#"$prefix"}"
-            publish=true
-          elif [[ "$EVENT" == schedule || "$EVENT" == workflow_dispatch ]]; then
-            nightly="$GITHUB_RUN_NUMBER"
-            tag="nightly-$version-$nightly"
-            publish=true
-            if [[ "$EVENT" == schedule ]]; then
-              previous=$(git for-each-ref --sort=-creatordate --count=1 --format='%(refname:short)' 'refs/tags/nightly-*')
-              if [[ -n "$previous" && "$(git rev-parse "$previous^{commit}")" == "$GITHUB_SHA" ]]; then
-                publish=false
-              fi
-            fi
-          fi
-          if [[ -n "$nightly" ]]; then
-            [[ "$nightly" =~ ^[1-9][0-9]{0,3}$ ]] && (( nightly < 9999 )) || { echo "::error::nightly build must be 1..9998"; exit 1; }
-          fi
-          echo "publish=$publish" >> "$GITHUB_OUTPUT"
-          echo "nightly=$nightly" >> "$GITHUB_OUTPUT"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/setup-java@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: "21"
+          distribution: 'zulu'
+          java-version: '17'
 
-      # Every published APK uses the existing signing key so channel changes preserve app data.
-      - name: Check signing key
-        if: steps.release.outputs.publish == 'true'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Auto-generate Version Tag
+        id: vars
         run: |
-          [ -n "$KEYSTORE_B64" ] || { echo "::error::KEYSTORE_B64 secret is missing"; exit 1; }
+          # 自动获取当前日期时间作为版本号，例如 v2026.11.02-1
+          VERSION="v$(date +'%Y.%m.%d-%H%M')"
+          echo "tag=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Decode signing key
-        if: steps.release.outputs.publish == 'true'
-        run: |
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
-          echo "CHRONOTIF_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
-
-      - name: Build and test
-        env:
-          CHRONOTIF_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          CHRONOTIF_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          CHRONOTIF_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          NIGHTLY: ${{ steps.release.outputs.nightly }}
-        run: |
-          args=()
-          if [[ -n "$NIGHTLY" ]]; then args+=("-PnightlyBuild=$NIGHTLY"); fi
-          ./gradlew --no-daemon testDebugUnitTest lintDebug assembleRelease "${args[@]}"
-
-      - name: Check nightly build
-        if: steps.release.outputs.nightly == '' && steps.release.outputs.publish != 'true'
-        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleRelease -PnightlyBuild=1
-
-      # Testers sideload this from the PR's Checks tab; it installs next to stable/nightly.
-      - name: Build PR test APK
-        if: github.event_name == 'pull_request'
-        run: |
-          ./gradlew --no-daemon assembleDebug
-          mv app/build/outputs/apk/debug/app-debug.apk "chronotif-pr-${{ github.event.number }}-debug.apk"
-
-      - name: Upload PR test APK
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: chronotif-pr-${{ github.event.number }}-debug
-          path: chronotif-pr-${{ github.event.number }}-debug.apk
-          retention-days: 14
-
-      - name: Publish release
-        if: steps.release.outputs.publish == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
-          NIGHTLY: ${{ steps.release.outputs.nightly }}
-          VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          apk="chronotif-${TAG}.apk"
-          cp app/build/outputs/apk/release/app-release.apk "$apk"
-          sha256sum "$apk" > "$apk.sha256"
-          flags=(--latest)
-          title="$TAG"
-          if [[ -n "$NIGHTLY" ]]; then
-            flags=(--prerelease --latest=false)
-            title="$VERSION-nightly.$NIGHTLY"
-          fi
-          gh release create "$TAG" "$apk" "$apk.sha256" --target "$GITHUB_SHA" \
-            --title "$title" --generate-notes "${flags[@]}"
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: Chronotif ${{ steps.vars.outputs.tag }}
+          files: app/build/outputs/apk/debug/*.apk
+          generate_release_notes: true
