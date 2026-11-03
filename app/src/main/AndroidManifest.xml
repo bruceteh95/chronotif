@@ -11,8 +11,6 @@
     <!-- "Update ready" / "Updated" notifications. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Edge handle overlay + launching the lock-screen view when the screen turns on. -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Resolve app names/icons for every package that posts notifications (local only). -->
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
@@ -76,21 +74,6 @@
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
-        </service>
-
-        <!-- Optional status-bar swipe. Needs an accessibility service because only
-             accessibility overlays can sit above the status bar. Reads no window content. -->
-        <service
-            android:name=".StatusBarSwipe"
-            android:exported="true"
-            android:label="@string/status_swipe_title"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/status_bar_swipe" />
         </service>
 
         <!-- Images the user chose to share, copied into our cache and readable only by the app they picked. -->
